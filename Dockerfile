@@ -10,12 +10,12 @@ COPY src/ src/
 COPY alembic/ alembic/
 COPY alembic.ini .
 
-# Flat `common/` at repo root; import via PYTHONPATH (same layout as api-gateway).
-ENV PYTHONPATH=/app:/app/src
+# Flat `src/` + `common/` layout; run via PYTHONPATH (same as api-gateway).
+ENV PYTHONPATH=/app
 RUN pip install --no-cache-dir .
 
 USER appuser
 
 EXPOSE 8000
 
-CMD ["uvicorn", "customer_support_agent.main:app", "--host", "0.0.0.0", "--port", "8000"]
+CMD ["uvicorn", "src.main:app", "--host", "0.0.0.0", "--port", "8000"]
