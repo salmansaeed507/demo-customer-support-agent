@@ -12,6 +12,7 @@ dependencies = [
     "psycopg[binary]>=3.0",
     "psycopg2-binary>=2.9",
     "alembic>=1.14",
+    "boto3>=1.43.104",
 ]
 
 [build-system]
