@@ -1,9 +1,13 @@
+import logging
 from datetime import date, datetime, timezone
 
 from fastapi import APIRouter, Depends, HTTPException, Response, status
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
+from common import s3 as s3_storage
+
+from ..config import settings
 from ..dependencies import get_db, require_user_id
 from ..ids import new_id
 from ..models import KnowledgeDoc
@@ -12,6 +16,8 @@ from ..schemas import (
     KnowledgeDocOut,
     KnowledgeDocUpdate,
 )
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/knowledge-docs", tags=["knowledge"])
 
@@ -29,6 +35,26 @@ def _get_doc(db: Session, doc_id: str, user_id: int) -> KnowledgeDoc:
     if doc is None or doc.user_id != user_id:
         raise HTTPException(status_code=404, detail="Knowledge document not found")
     return doc
+
+
+def _promote_file_url_if_staging(file_url: str) -> str:
+    key = file_url.strip()
+    if not key or not s3_storage.is_staging_key(settings, key):
+        return file_url
+    s3_storage.require_s3_configured(settings)
+    return s3_storage.promote_object(settings, key)
+
+
+def _delete_attached_file(file_url: str) -> None:
+    key = (file_url or "").strip()
+    if not key or not s3_storage.is_managed_object_key(settings, key):
+        return
+    if not s3_storage.s3_configured(settings):
+        return
+    try:
+        s3_storage.delete_object(settings, key)
+    except Exception:
+        logger.exception("Failed to delete knowledge doc from S3 key=%s", key)
 
 
 @router.get("", response_model=list[KnowledgeDocOut])
@@ -92,6 +118,7 @@ def create_doc(
         embedding_status=status_value,
         collection=body.collection.strip() or "support",
         tags=list(body.tags),
+        file_url=_promote_file_url_if_staging(body.file_url),
     )
     db.add(doc)
     db.commit()
@@ -107,6 +134,7 @@ def update_doc(
     user_id: int = Depends(require_user_id),
 ) -> KnowledgeDoc:
     doc = _get_doc(db, doc_id, user_id)
+    previous_file = doc.file_url or ""
 
     data = body.model_dump(exclude_unset=True)
     if "embedding_status" in data:
@@ -119,6 +147,8 @@ def update_doc(
             doc.embedding_status = "ready"
         elif not indexed and doc.embedding_status == "ready":
             doc.embedding_status = "pending"
+    if "file_url" in data and isinstance(data["file_url"], str):
+        data["file_url"] = _promote_file_url_if_staging(data["file_url"])
 
     for field, value in data.items():
         if field == "collection" and isinstance(value, str):
@@ -128,6 +158,12 @@ def update_doc(
     _sync_indexed_flags(doc)
     db.commit()
     db.refresh(doc)
+
+    if "file_url" in body.model_dump(exclude_unset=True):
+        new_file = doc.file_url or ""
+        if previous_file and previous_file != new_file:
+            _delete_attached_file(previous_file)
+
     return doc
 
 
@@ -138,8 +174,10 @@ def delete_doc(
     user_id: int = Depends(require_user_id),
 ) -> Response:
     doc = _get_doc(db, doc_id, user_id)
+    file_url = doc.file_url or ""
     db.delete(doc)
     db.commit()
+    _delete_attached_file(file_url)
     return Response(status_code=status.HTTP_204_NO_CONTENT)
 
 

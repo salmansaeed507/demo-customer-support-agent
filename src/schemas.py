@@ -190,6 +190,7 @@ class KnowledgeDocCreate(CamelModel):
     last_indexed_at: datetime | None = None
     collection: str = "support"
     tags: list[str] = Field(default_factory=list)
+    file_url: str = ""
     id: str | None = None
 
 
@@ -204,6 +205,7 @@ class KnowledgeDocUpdate(CamelModel):
     last_indexed_at: datetime | None = None
     collection: str | None = None
     tags: list[str] | None = None
+    file_url: str | None = None
 
 
 class KnowledgeDocOut(CamelModel):
@@ -218,6 +220,7 @@ class KnowledgeDocOut(CamelModel):
     embedding_status: EmbeddingStatus
     collection: str
     tags: list[str]
+    file_url: str = ""
 
 
 class AgentTraceStep(CamelModel):

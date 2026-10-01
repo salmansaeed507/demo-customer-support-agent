@@ -93,6 +93,7 @@ class KnowledgeDoc(Base):
     embedding_status: Mapped[str] = mapped_column(String(32), default="pending")
     collection: Mapped[str] = mapped_column(String(128), default="support")
     tags: Mapped[list] = mapped_column(JsonType, default=list)
+    file_url: Mapped[str] = mapped_column(String(1024), default="")
 
 
 class ChatThread(Base):
