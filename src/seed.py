@@ -1,6 +1,10 @@
-"""Seed data aligned with frontend ShopPilot mocks."""
+"""Seed data for customer-support-agent demos."""
 
+from __future__ import annotations
+
+import json
 from datetime import date, datetime, timedelta, timezone
+from pathlib import Path
 
 from sqlalchemy import delete, func, select
 from sqlalchemy.orm import Session
@@ -17,95 +21,30 @@ from .models import (
 
 _SEED_NOW = datetime.now(timezone.utc)
 
-SEED_PRODUCTS = [
-    {
-        "id": "p-1001",
-        "name": "Aurora Wireless Headphones",
-        "price": 129.99,
-        "category": "Audio",
-        "description": (
-            "Over-ear headphones with active noise canceling, 30-hour battery, "
-            "and USB-C charging."
-        ),
-        "stock": 24,
-        "image_url": (
-            "https://images.unsplash.com/photo-1505740420928-5e560c06d30e"
-            "?auto=format&fit=crop&w=800&q=80"
-        ),
-    },
-    {
-        "id": "p-1002",
-        "name": "Nimbus Desk Lamp",
-        "price": 49.0,
-        "category": "Home",
-        "description": (
-            "Adjustable color temperature and brightness with memory presets. "
-            "USB-powered."
-        ),
-        "stock": 18,
-        "image_url": (
-            "https://images.unsplash.com/photo-1507473885765-e6ed057f782c"
-            "?auto=format&fit=crop&w=800&q=80"
-        ),
-    },
-    {
-        "id": "p-1003",
-        "name": "TrailForge Backpack",
-        "price": 89.0,
-        "category": "Bags",
-        "description": (
-            "Water-resistant 20L backpack with laptop sleeve and hidden "
-            "passport pocket."
-        ),
-        "stock": 41,
-        "image_url": (
-            "https://images.unsplash.com/photo-1553062407-98eeb64c6a62"
-            "?auto=format&fit=crop&w=800&q=80"
-        ),
-    },
-    {
-        "id": "p-1004",
-        "name": "FrostBottle Steel",
-        "price": 32.0,
-        "category": "Drinkware",
-        "description": (
-            "24oz double-wall bottle keeps drinks cold for 24 hours or hot for 12."
-        ),
-        "stock": 60,
-        "image_url": (
-            "https://images.unsplash.com/photo-1602143407151-7111542de6e8"
-            "?auto=format&fit=crop&w=800&q=80"
-        ),
-    },
-    {
-        "id": "p-1005",
-        "name": "Pulse Wireless Mouse",
-        "price": 39.99,
-        "category": "Accessories",
-        "description": (
-            "Quiet-click mouse with multi-device pairing and rechargeable battery."
-        ),
-        "stock": 33,
-        "image_url": (
-            "https://images.unsplash.com/photo-1527864550417-7fd91fc51a46"
-            "?auto=format&fit=crop&w=800&q=80"
-        ),
-    },
-    {
-        "id": "p-1006",
-        "name": "SoftCotton Tee Pack",
-        "price": 45.0,
-        "category": "Apparel",
-        "description": (
-            "Soft unisex tees in charcoal, cream, and navy. Pre-shrunk fabric."
-        ),
-        "stock": 12,
-        "image_url": (
-            "https://images.unsplash.com/photo-1521572163474-6864f9cf17ab"
-            "?auto=format&fit=crop&w=800&q=80"
-        ),
-    },
-]
+# Default catalog: https://kolzsticks.github.io/Free-Ecommerce-Products-Api/main/products.json
+_DEFAULT_PRODUCTS_PATH = Path(__file__).resolve().parent / "data" / "products.json"
+_DEFAULT_STOCK = 25
+
+
+def _load_seed_products(path: Path = _DEFAULT_PRODUCTS_PATH) -> list[dict]:
+    rows = json.loads(path.read_text(encoding="utf-8"))
+    products: list[dict] = []
+    for row in rows:
+        products.append(
+            {
+                "id": str(row["id"]),
+                "name": row["name"],
+                "price": round(float(row["priceCents"]) / 100.0, 2),
+                "category": row.get("category") or "General",
+                "description": row.get("description") or "",
+                "stock": _DEFAULT_STOCK,
+                "image_url": row.get("image") or "",
+            }
+        )
+    return products
+
+
+SEED_PRODUCTS = _load_seed_products()
 
 SEED_TICKETS = [
     {
@@ -162,7 +101,7 @@ SEED_ORDERS = [
         "email": "sara.khan@example.com",
         "phone": "+1 (512) 555-0142",
         "shipping_address": "482 Oak Ave, Apt 4B, Austin, TX 78702",
-        "total": 178.99,
+        "total": 97.99,
         "status": "out_for_delivery",
         "shipping_method": "Express",
         "carrier": "UPS",
@@ -172,17 +111,17 @@ SEED_ORDERS = [
         "items": [
             {
                 "id": "oi-48291-1",
-                "product_id": "p-1001",
-                "name": "Aurora Wireless Headphones",
+                "product_id": "11",
+                "name": "Wireless Bluetooth Headphones",
                 "quantity": 1,
-                "unit_price": 129.99,
+                "unit_price": 79.99,
             },
             {
                 "id": "oi-48291-2",
-                "product_id": "p-1006",
-                "name": "SoftCotton Tee Pack",
+                "product_id": "28",
+                "name": "Graphic Print T-Shirt",
                 "quantity": 1,
-                "unit_price": 45.0,
+                "unit_price": 18.0,
             },
         ],
     },
@@ -192,7 +131,7 @@ SEED_ORDERS = [
         "email": "sam.chen@example.com",
         "phone": "+1 (415) 555-0198",
         "shipping_address": "90 Mission St, San Francisco, CA 94105",
-        "total": 89.0,
+        "total": 60.0,
         "status": "delivered",
         "shipping_method": "Standard",
         "carrier": "USPS",
@@ -202,10 +141,10 @@ SEED_ORDERS = [
         "items": [
             {
                 "id": "oi-48288-1",
-                "product_id": "p-1003",
-                "name": "TrailForge Backpack",
+                "product_id": "24",
+                "name": "Leather Tote Bag",
                 "quantity": 1,
-                "unit_price": 89.0,
+                "unit_price": 60.0,
             },
         ],
     },
@@ -215,7 +154,7 @@ SEED_ORDERS = [
         "email": "jordan.lee@example.com",
         "phone": "+1 (206) 555-0177",
         "shipping_address": "1201 Pine St, Seattle, WA 98101",
-        "total": 49.0,
+        "total": 50.0,
         "status": "processing",
         "shipping_method": "Standard",
         "carrier": "—",
@@ -225,10 +164,10 @@ SEED_ORDERS = [
         "items": [
             {
                 "id": "oi-48275-1",
-                "product_id": "p-1002",
-                "name": "Nimbus Desk Lamp",
+                "product_id": "37",
+                "name": "Contemporary Table Lamp",
                 "quantity": 1,
-                "unit_price": 49.0,
+                "unit_price": 50.0,
             },
         ],
     },
@@ -238,7 +177,7 @@ SEED_ORDERS = [
         "email": "alex@example.com",
         "phone": "+1 (512) 555-0101",
         "shipping_address": "123 Market St, Austin, TX 78701",
-        "total": 129.99,
+        "total": 79.99,
         "status": "refunded",
         "shipping_method": "Standard",
         "carrier": "FedEx",
@@ -248,10 +187,10 @@ SEED_ORDERS = [
         "items": [
             {
                 "id": "oi-48260-1",
-                "product_id": "p-1001",
-                "name": "Aurora Wireless Headphones",
+                "product_id": "11",
+                "name": "Wireless Bluetooth Headphones",
                 "quantity": 1,
-                "unit_price": 129.99,
+                "unit_price": 79.99,
             },
         ],
     },
@@ -325,7 +264,7 @@ def _user_is_empty(db: Session, user_id: int) -> bool:
 
 
 def seed_database(db: Session, user_id: int) -> None:
-    """Insert frontend-aligned demo rows for a single user when they have none."""
+    """Insert demo rows for a single user when they have none."""
     if not _user_is_empty(db, user_id):
         return
 
